@@ -1,6 +1,8 @@
 import { Lock } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import { post } from '../api/client';
+import { AuthContext } from '../context/AuthContext';
 
 
 const Login: React.FC = () => {
@@ -10,17 +12,32 @@ const Login: React.FC = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate(); // <-- initialisation
 
+  const auth = useContext(AuthContext);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Condition de login simple
-    if (email === "admin@gmail.com" && password === "123456") {
-      setError("");
-      console.log("✅ Connexion réussie !");
-      navigate("/dashboard"); // <-- redirection vers la page dashboard
-    } else {
-      setError("❌ Email ou mot de passe incorrect !");
-    }
+    // Call backend login
+    (async () => {
+      try {
+        const res = await post('/auth/login', { email, password });
+        if (res && res.data && res.data.token) {
+          if (auth && typeof auth.login === 'function') {
+            auth.login(res.data.user, res.data.token);
+          } else {
+            localStorage.setItem('token', res.data.token);
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+          }
+
+          setError('');
+          navigate('/dashboard');
+        } else {
+          setError('Erreur lors de la connexion');
+        }
+      } catch (err: any) {
+        setError(err?.message || 'Erreur lors de la connexion');
+      }
+    })();
   };
 
   return (
