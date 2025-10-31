@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String  @id @default(cuid())
+  email     String  @unique
+  password  String
+  name      String?
+  role      String?  @default("user")
+  createdAt DateTime @default(now())
+}
+
+model Fan {
+  id             String  @id @default(cuid())
+  nom            String
+  initiale       String?
+  urlAvatar      String?
+  statut         String
+  derniereActivite DateTime?
+  totalDepense   Float?  @default(0)
+}
+
+model Contenu {
+  id       String @id @default(cuid())
+  titre    String
+  urlImage String
+  prix     Float
+}
+
+model Image {
+  id           Int    @id @default(autoincrement())
+  url          String
+  price        String
+  versionTag   String?
+  versionColor String?
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  fromId    String
+  toId      String
+  content   String
+  createdAt DateTime @default(now())
+}

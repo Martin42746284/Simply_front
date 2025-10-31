@@ -6,15 +6,55 @@ import { CarteContenu } from '../components/CarteContenu';
 import type { Fan, Contenu } from '../types/types';
 
 const FANS_SIMULES: Fan[] = [
-  { id: '1', nom: 'Cooper', initiale: 'C', derniereActivite: 'Il y a 1 jour', statut: 'Spender', urlAvatar: 'https://randomuser.me/api/portraits/women/3.jpg' },
-  { id: '2', nom: 'Alfredo', initiale: 'A', derniereActivite: 'Il y a 4 jours', statut: 'Timewaster', urlAvatar: 'https://randomuser.me/api/portraits/men/41.jpg' },
-  { id: '3', nom: 'Emerson', initiale: 'E', derniereActivite: 'Il y a 12 jours', statut: 'Good buyer', urlAvatar: 'https://randomuser.me/api/portraits/women/12.jpg' },
-  { id: '4', nom: 'Beatrice', initiale: 'B', derniereActivite: 'Il y a 2 jours', statut: 'Spender', urlAvatar: 'https://randomuser.me/api/portraits/women/27.jpg' },
-  { id: '5', nom: 'Luisa', initiale: 'L', derniereActivite: 'Il y a 2 jours', statut: 'Spender', urlAvatar: 'https://randomuser.me/api/portraits/women/28.jpg' },
-];
+  { 
+    id: '1', 
+    nom: 'Cooper', 
+    initiale: 'C', 
+    derniereActivite: 'Il y a 1 jour', 
+    statut: 'Spender', 
+    urlAvatar: 'https://randomuser.me/api/portraits/women/3.jpg',
+    totalDepense: 1200
+  },
+  { 
+    id: '2', 
+    nom: 'Alfredo', 
+    initiale: 'A', 
+    derniereActivite: 'Il y a 4 jours', 
+    statut: 'Timewaster', 
+    urlAvatar: 'https://randomuser.me/api/portraits/men/41.jpg',
+    totalDepense: 50
+  },
+  { 
+    id: '3', 
+    nom: 'Emerson', 
+    initiale: 'E', 
+    derniereActivite: 'Il y a 12 jours', 
+    statut: 'Good buyer', 
+    urlAvatar: 'https://randomuser.me/api/portraits/women/12.jpg',
+    totalDepense: 450
+  },
+  { 
+    id: '4', 
+    nom: 'Beatrice', 
+    initiale: 'B', 
+    derniereActivite: 'Il y a 2 jours', 
+    statut: 'Spender', 
+    urlAvatar: 'https://randomuser.me/api/portraits/women/27.jpg',
+    totalDepense: 2100
+  },
+  { 
+    id: '5', 
+    nom: 'Luisa', 
+    initiale: 'L', 
+    derniereActivite: 'Il y a 2 jours', 
+    statut: 'Spender', 
+    urlAvatar: 'https://randomuser.me/api/portraits/women/28.jpg',
+    totalDepense: 1800
+  },
+] as const;
 
-const TITRES_SIMULES: Contenu['titre'][] = ['Gratuit', 'Acheté', 'En attente', 'Refusé', 'Public', 'Refusé'];
-const PRIX_SIMULES: number[] = [0, 0, 0, 0, 5, 8];
+const TITRES_SIMULES: Array<Contenu['titre']> = ['Gratuit', 'Acheté', 'En attente', 'Refusé', 'Public', 'Refusé'];
+const PRIX_SIMULES = [0, 15, 25, 0, 5, 8] as const;
 
 const CONTENUS_SIMULES: Contenu[] = TITRES_SIMULES.map((titre, index) => {
   const fan = FANS_SIMULES[index % FANS_SIMULES.length];
