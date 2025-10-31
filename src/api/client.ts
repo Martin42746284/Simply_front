@@ -13,10 +13,17 @@ type FetchOptions = RequestInit & { authenticate?: boolean };
 export async function apiFetch(path: string, options: FetchOptions = {}) {
   const url = API_BASE.replace(/\/$/, '') + path;
 
+  // Build headers but avoid forcing Content-Type for FormData bodies
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
   };
+
+  const body = (options as any).body;
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+  if (!isFormData) {
+    // only set JSON content type when not sending FormData
+    headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+  }
 
   if (options.authenticate !== false) {
     const token = localStorage.getItem('token');
@@ -74,8 +81,9 @@ export const profileApi = {
   uploadAvatar: async (file: File): Promise<ApiResponse<UserProfile>> => {
     const formData = new FormData();
     formData.append('avatar', file);
-    return apiFetch('/users/me/avatar', {
-      method: 'POST',
+    // The backend accepts avatar upload on PUT /users/me (multipart)
+    return apiFetch('/users/me', {
+      method: 'PUT',
       body: formData,
       headers: {} // Let browser set correct content-type for FormData
     });
