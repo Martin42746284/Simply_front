@@ -8,12 +8,34 @@ datasource db {
 }
 
 model User {
-  id        String  @id @default(cuid())
-  email     String  @unique
-  password  String
-  name      String?
-  role      String?  @default("user")
-  createdAt DateTime @default(now())
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String
+  name              String?
+  firstName         String?
+  lastName          String?
+  phone             String?
+  bio               String?
+  job               String?
+  country           String?
+  city              String?
+  postalCode        String?
+  birthday          String?
+  avatar            String?
+  role              String?   @default("user")
+  createdAt         DateTime  @default(now())
+  
+  // Paramètres utilisateur
+  emailNotifications Boolean? @default(true)
+  pushNotifications  Boolean? @default(true)
+  marketingEmails    Boolean? @default(false)
+  securityAlerts     Boolean? @default(true)
+  
+  // Réseaux sociaux
+  facebook          String?
+  twitter           String?
+  instagram         String?
+  linkedin          String?
 }
 
 model Fan {

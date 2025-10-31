@@ -5,7 +5,7 @@ interface JwtPayload {
   userId: string;
 }
 
-export function requireAuth(req: Request & { user?: any }, res: Response, next: NextFunction) {
+export function requireAuth(req: Request & { user?: { id: string } }, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Missing token' });
 

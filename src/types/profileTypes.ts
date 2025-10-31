@@ -1,22 +1,4 @@
-
-// types/types.ts
-export interface Fan {
-  id: string;
-  nom: string;
-  initiale: string;
-  urlAvatar?: string;
-  statut: 'Spender' | 'Good buyer' | 'Timewaster';
-  derniereActivite: string;
-  totalDepense: number;
-}
-
-export interface Contenu {
-  id: string;
-  titre: 'Acheté' | 'En attente' | 'Refusé' | 'Gratuit' | 'Public';
-  urlImage: string;
-  prix: number;
-}
-
+// Types pour les paramètres utilisateur
 export interface UserSettings {
   emailNotifications: boolean;
   pushNotifications: boolean;
@@ -24,6 +6,7 @@ export interface UserSettings {
   securityAlerts: boolean;
 }
 
+// Types pour les réseaux sociaux
 export interface UserSocial {
   facebook: string | null;
   twitter: string | null;
@@ -31,6 +14,7 @@ export interface UserSocial {
   linkedin: string | null;
 }
 
+// Type principal du profil utilisateur
 export interface UserProfile {
   id: string;
   email: string;
@@ -50,6 +34,7 @@ export interface UserProfile {
   updatedAt: string;
 }
 
+// Type pour les réponses API
 export interface ApiResponse<T> {
   data: T;
   error?: string;

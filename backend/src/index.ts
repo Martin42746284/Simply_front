@@ -1,13 +1,14 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import prisma from './prisma.js';
-import authRoutes from './routes/auth.js';
-import usersRoutes from './routes/users.js';
-import fansRoutes from './routes/fans.js';
-import imagesRoutes from './routes/images.js';
-import contenuRoutes from './routes/contenu.js';
-import messagesRoutes from './routes/messages.js';
+import path from 'path';
+import prisma from './prisma';
+import authRoutes from './routes/auth';
+import usersRoutes from './routes/users';
+import fansRoutes from './routes/fans';
+import imagesRoutes from './routes/images';
+import contenuRoutes from './routes/contenu';
+import messagesRoutes from './routes/messages';
 
 // Charger les variables d'environnement
 dotenv.config();
@@ -23,6 +24,7 @@ async function main() {
     // Middleware
     app.use(cors());
     app.use(express.json());
+    app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'))); // Serve uploaded files
 
     // Routes
     app.use('/auth', authRoutes);
@@ -33,7 +35,7 @@ async function main() {
     app.use('/messages', messagesRoutes);
 
     // Error handler
-    app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
       console.error(err.stack);
       res.status(500).json({ error: 'Something broke!' });
     });
@@ -54,3 +56,4 @@ main().catch((error) => {
   console.error('❌ Fatal error:', error);
   process.exit(1);
 });
+

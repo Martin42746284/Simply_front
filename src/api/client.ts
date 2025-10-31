@@ -1,3 +1,11 @@
+import type { 
+  UserProfile, 
+  ApiResponse,
+  ProfileUpdate,
+  SettingsUpdate,
+  SocialUpdate
+} from '../types/profileTypes';
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 type FetchOptions = RequestInit & { authenticate?: boolean };
@@ -41,8 +49,37 @@ export async function post(path: string, body: any, opts: RequestInit = {}) {
   return apiFetch(path, { method: 'POST', body: JSON.stringify(body), ...opts });
 }
 
+export async function put(path: string, body: any, opts: RequestInit = {}) {
+  return apiFetch(path, { method: 'PUT', body: JSON.stringify(body), ...opts });
+}
+
 export async function get(path: string, opts: RequestInit = {}) {
   return apiFetch(path, { method: 'GET', ...opts });
 }
 
-export default { apiFetch, post, get };
+// Profile API
+export const profileApi = {
+  getProfile: (): Promise<ApiResponse<UserProfile>> => 
+    get('/users/me'),
+
+  updateProfile: (data: ProfileUpdate): Promise<ApiResponse<UserProfile>> => 
+    put('/users/me', data),
+
+  updateSettings: (settings: SettingsUpdate): Promise<ApiResponse<UserProfile>> => 
+    put('/users/me/settings', settings),
+
+  updateSocial: (social: SocialUpdate): Promise<ApiResponse<UserProfile>> => 
+    put('/users/me/social', social),
+
+  uploadAvatar: async (file: File): Promise<ApiResponse<UserProfile>> => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return apiFetch('/users/me/avatar', {
+      method: 'POST',
+      body: formData,
+      headers: {} // Let browser set correct content-type for FormData
+    });
+  }
+};
+
+export default { apiFetch, post, put, get, profileApi };
