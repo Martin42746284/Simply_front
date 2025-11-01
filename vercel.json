@@ -5,10 +5,13 @@
       "use": "@vercel/node"
     },
     {
-      "src": "index.html",
+      "src": "package.json",
       "use": "@vercel/static-build"
     }
   ],
+  "env": {
+    "NODE_ENV": "production"
+  },
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "routes": [
