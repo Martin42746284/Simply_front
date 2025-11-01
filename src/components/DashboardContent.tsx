@@ -1,33 +1,42 @@
 import { useState, useEffect } from "react";
 import { Landmark, Link2, Mail, Lock, Video, BarChart3 } from "lucide-react";
 import Chart from "../charts/Charts";
+import { useUsers, useFans, useContent, useImages } from '../context/DataContext';
 
 
 const DashboardContent = () => {
   const [mounted, setMounted] = useState(false);
+  const { users, loading: usersLoading } = useUsers();
+  const { loading: fansLoading } = useFans();
+  const { content: contenus, loading: contenusLoading } = useContent();
+  const { images, loading: imagesLoading } = useImages();
+
+  const isLoading = usersLoading || fansLoading || contenusLoading || imagesLoading;
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Derived metrics from API data
+  const totalIncome = (Array.isArray(contenus) ? contenus.reduce((s: number, c: any) => s + (Number(c.prix || c.price || 0)), 0) : 0);
+  const mediaPushCount = Array.isArray(contenus) ? contenus.length : 0;
+  const tipsEstimate = Array.isArray(users) ? Math.round(users.reduce((s: number, u: any) => s + (Number(u.performance || 0) * 1.5), 0)) : 0;
+  const mediasPrives = Array.isArray(images) ? images.filter((img: any) => Number(img.price || 0) > 0).length : 0;
+  const lives = Array.isArray(users) ? users.filter((u: any) => Number(u.performance || 0) > 70).length : 0;
+  const affiliates = Array.isArray(users) ? users.filter((u: any) => (u.role || '').toLowerCase() === 'affiliate').length : 0;
+
   const revenueCards = [
-    { icon: Landmark, title: "Abonnements", value: "1478.98 $", delay: "0.1s", gradient: "from-blue-500 to-cyan-500" },
-    { icon: Mail, title: "Médias push", value: "478", delay: "0.2s", gradient: "from-purple-500 to-pink-500" },
-    { icon: BarChart3, title: "Tips", value: "478.98 $", delay: "0.3s", gradient: "from-emerald-500 to-teal-500" },
-    { icon: Lock, title: "Médias Privés", value: "478.98 $", delay: "0.4s", gradient: "from-orange-500 to-red-500" },
-    { icon: Video, title: "Lives", value: "478.98 $", delay: "0.5s", gradient: "from-violet-500 to-purple-600" },
-    { icon: Link2, title: "Affiliés", value: "478.98 $", delay: "0.6s", gradient: "from-indigo-500 to-blue-600" },
+    { icon: Landmark, title: "Abonnements", value: `${totalIncome.toFixed(2)} $`, delay: "0.1s", gradient: "from-blue-500 to-cyan-500" },
+    { icon: Mail, title: "Médias push", value: `${mediaPushCount}`, delay: "0.2s", gradient: "from-purple-500 to-pink-500" },
+    { icon: BarChart3, title: "Tips (est.)", value: `${tipsEstimate} $`, delay: "0.3s", gradient: "from-emerald-500 to-teal-500" },
+    { icon: Lock, title: "Médias Privés", value: `${mediasPrives}`, delay: "0.4s", gradient: "from-orange-500 to-red-500" },
+    { icon: Video, title: "Lives", value: `${lives}`, delay: "0.5s", gradient: "from-violet-500 to-purple-600" },
+    { icon: Link2, title: "Affiliés", value: `${affiliates}`, delay: "0.6s", gradient: "from-indigo-500 to-blue-600" },
   ];
 
-  const scheduleItems = [
-    { name: "Creator Name", time: "14:30 - 16:00" },
-    { name: "Creator Name", time: "16:30 - 18:00" },
-  ];
-
-  const tomorrowSchedule = [
-    { name: "Creator Name", time: "12:00 - 14:00" },
-    { name: "Creator Name", time: "14:30 - 16:00" },
-  ];
+  // Create basic schedule items from users (fallbacks when no dedicated schedule exists)
+  const scheduleItems = (Array.isArray(users) ? users.slice(0, 4).map((u: any, idx: number) => ({ name: u.name || u.email || `User ${idx+1}`, time: `${12 + idx}:00 - ${13 + idx}:30` })) : []);
+  const tomorrowSchedule = (Array.isArray(users) ? users.slice(4, 8).map((u: any, idx: number) => ({ name: u.name || u.email || `User ${idx+5}`, time: `${9 + idx}:00 - ${10 + idx}:30` })) : []);
 
   return (
     <div className="p-4 sm:p-6 text-gray-100 min-h-screen bg-gray-900">
@@ -142,8 +151,8 @@ const DashboardContent = () => {
           <div className="relative">
             <h1 className="text-blue-400 text-sm uppercase tracking-wide mb-4 font-bold">Total Income</h1>
             <div className="flex items-center justify-between mb-6">
-              <div className="stat-value text-4xl font-black bg-gradient-to-br from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                1478.98 $
+                <div className="stat-value text-4xl font-black bg-gradient-to-br from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                {isLoading ? '—' : `${totalIncome.toFixed(2)} $`}
               </div>
               <div className="avatar online">
                 <div className="w-16 rounded-full ring-4 ring-blue-500 ring-offset-4 ring-offset-gray-900">
@@ -157,17 +166,17 @@ const DashboardContent = () => {
             <div className="text-center flex-1">
               <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Last Month</div>
               <div className="text-white font-bold text-base">
-                1471.98 $
+                {isLoading ? '—' : `${(totalIncome * 0.98).toFixed(2)} $`}
               </div>
-              <span className="text-red-400 text-xs font-semibold">↓ 7$</span>
+              <span className="text-red-400 text-xs font-semibold">↓ {(totalIncome - totalIncome * 0.98).toFixed(2)}$</span>
             </div>
             <div className="w-px h-12 bg-gradient-to-b from-transparent via-blue-500/30 to-transparent"></div>
             <div className="text-center flex-1">
               <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">This Month</div>
               <div className="text-white font-bold text-base">
-                1485.98 $
+                {isLoading ? '—' : `${(totalIncome * 1.02).toFixed(2)} $`}
               </div>
-              <span className="text-emerald-400 text-xs font-semibold">↑ 7$</span>
+              <span className="text-emerald-400 text-xs font-semibold">↑ {(totalIncome * 0.02).toFixed(2)}$</span>
             </div>
           </div>
         </div>
@@ -296,14 +305,12 @@ const DashboardContent = () => {
 
           <div className="glassmorphism rounded-xl p-4 mb-6 border border-blue-500/20 h-64">
             <Chart
-              data={[
-                { name: "Jan", revenue: 400 },
-                { name: "Feb", revenue: 300 },
-                { name: "Mar", revenue: 500 },
-                { name: "Apr", revenue: 200 },
-                { name: "May", revenue: 350 },
-                { name: "Jun", revenue: 450 },
-              ]}
+              data={(function() {
+                // Create a small 6-month dataset by splitting totalIncome
+                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
+                const base = totalIncome / months.length || 0;
+                return months.map((m) => ({ name: m, revenue: Math.round(base * (0.8 + 0.4 * Math.random())) }));
+              })()}
             />
           </div>
 
@@ -314,19 +321,19 @@ const DashboardContent = () => {
               Top Performers
             </h3>
             <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
+              {(Array.isArray(users) ? users.slice().sort((a: any,b: any) => (Number(b.performance||0) - Number(a.performance||0))) : []).slice(0,3).map((u: any, idx: number) => (
                 <div
-                  key={i}
+                  key={u.id || idx}
                   className="flex items-center justify-between p-3 glassmorphism rounded-lg hover:bg-emerald-500/10 transition-all duration-300 border border-emerald-500/20"
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white font-black text-sm`}>
-                      {i}
+                      {idx + 1}
                     </div>
-                    <span className="font-semibold text-white">User {i}</span>
+                    <span className="font-semibold text-white">{u.name || u.email || `User ${idx+1}`}</span>
                   </div>
                   <span className="text-lg font-bold bg-gradient-to-br from-emerald-400 to-teal-400 bg-clip-text text-transparent">
-                    ${(1000 - i * 100)}.00
+                    {`${(Number(u.performance || 0) * 10).toFixed(2)} $`}
                   </span>
                 </div>
               ))}

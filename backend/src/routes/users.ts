@@ -14,8 +14,111 @@ import {
   SettingsUpdateData, 
   SocialUpdateData 
 } from '../types/userTypes';
+import bcrypt from 'bcryptjs';
 
 const router = Router();
+
+// Admin-style CRUD for users (employees)
+// GET /users - list all users
+router.get('/', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const users = await prisma.user.findMany();
+    const formatted = users.map((u) => formatUserResponse(u));
+    sendSuccess(res, formatted);
+  } catch (err) {
+    sendError(res, err as Error);
+  }
+});
+
+// POST /users - create a new user
+router.post('/', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { name, email, job, phone, role, avatar, department, joinDate, status, performance } = req.body as any;
+    if (!email) return sendError(res, 'Email is required', 400);
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) return sendError(res, 'Email already used', 400);
+
+    const password = req.body.password || 'change_me_123';
+    const hashed = await bcrypt.hash(password, 10);
+
+    // Map department -> city, map status/performance to dedicated columns
+    const createData: any = {
+      name,
+      email,
+      password: hashed,
+      job,
+      phone,
+      role,
+      ...(avatar ? { avatar } : {}),
+      ...(department ? { city: department } : {}),
+      ...(joinDate ? { createdAt: new Date(joinDate) } : {}),
+      ...(status ? { status } : {}),
+      ...(performance !== undefined ? { performance: Number(performance) } : {})
+    };
+
+    const user = await prisma.user.create({ data: createData });
+
+    sendSuccess(res, formatUserResponse(user), 'User created', 201);
+  } catch (err) {
+    sendError(res, err as Error);
+  }
+});
+
+// PUT /users/:id - update a user by id
+router.put('/:id', requireAuth, async (req: Request, res: Response) => {
+  const id = req.params.id;
+  try {
+    const data = req.body as any;
+
+    // Build an object with only allowed Prisma fields (map frontend names)
+    const updateData: any = {};
+
+    // Basic direct mappings
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.job !== undefined) updateData.job = data.job;
+    if (data.role !== undefined) updateData.role = data.role;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.avatar !== undefined) updateData.avatar = data.avatar;
+
+    // department -> city
+    if (data.department !== undefined) updateData.city = data.department;
+
+    // joinDate -> createdAt
+    if (data.joinDate !== undefined) {
+      try {
+        updateData.createdAt = new Date(data.joinDate);
+      } catch (e) {
+        // ignore invalid date, do not set
+      }
+    }
+
+    // password (if provided) should be hashed
+    if (data.password) {
+      updateData.password = await bcrypt.hash(data.password, 10);
+    }
+
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.performance !== undefined) updateData.performance = Number(data.performance);
+
+    const updated = await prisma.user.update({ where: { id }, data: updateData });
+    sendSuccess(res, formatUserResponse(updated));
+  } catch (err) {
+    sendError(res, err as Error);
+  }
+});
+
+// DELETE /users/:id - delete a user by id
+router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
+  const id = req.params.id;
+  try {
+    await prisma.user.delete({ where: { id } });
+    sendSuccess(res, { id }, 'User deleted');
+  } catch (err) {
+    sendError(res, err as Error);
+  }
+});
 
 // Middleware de vérification d'authentification avec type checking
 const checkAuth = (req: Request & { user?: { id: string }; userId?: string }, res: Response, next: NextFunction) => {

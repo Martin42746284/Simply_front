@@ -91,3 +91,32 @@ export const profileApi = {
 };
 
 export default { apiFetch, post, put, get, profileApi };
+
+// Users / employees API (admin)
+export const usersApi = {
+  list: async () => get('/users'),
+  create: async (data: any) => post('/users', data),
+  update: async (id: string, data: any) => put(`/users/${id}`, data),
+  delete: async (id: string) => apiFetch(`/users/${id}`, { method: 'DELETE' })
+};
+
+export const fansApi = {
+  list: async () => get('/fans'),
+  create: async (data: any) => post('/fans', data)
+};
+
+export const contenuApi = {
+  list: async () => get('/contenu'),
+  create: async (data: any) => post('/contenu', data)
+};
+
+export const imagesApi = {
+  list: async () => get('/images'),
+  create: async (data: any) => post('/images', data)
+};
+
+export const messagesApi = {
+  // list messages between two users
+  list: async (fromId: string, toId: string) => get(`/messages?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`),
+  create: async (data: { fromId: string; toId: string; content: string }) => post('/messages', data)
+};

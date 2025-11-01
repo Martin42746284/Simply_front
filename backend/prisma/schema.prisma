@@ -21,6 +21,9 @@ model User {
   city              String?
   postalCode        String?
   birthday          String?
+  // Employee status/performance (new)
+  status            String?
+  performance       Int?
   avatar            String?
   role              String?   @default("user")
   createdAt         DateTime  @default(now())

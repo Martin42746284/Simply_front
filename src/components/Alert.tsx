@@ -1,48 +1,108 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, Bell, Bot, ArrowRight, Sparkles, CheckCircle, X } from 'lucide-react';
+import { usersApi, fansApi, contenuApi } from '../api/client';
 
-const notifications = [
-  {
-    type: 'Priorité Haute',
-    text: 'Votre intégration Stripe nécessite une revalidation immédiate.',
-    button: 'Résoudre maintenant',
-    icon: AlertTriangle,
-    gradient: 'from-amber-500 to-orange-500',
-    bg: 'bg-amber-500/20',
-    border: 'border-amber-500/40',
-    textColor: 'text-amber-400',
-    delay: '0.1s',
-    priority: 'high'
-  },
-  {
-    type: 'Notification',
-    text: 'Nouvelle fonctionnalité disponible : Réponses IA activées pour votre équipe.',
-    button: 'Découvrir',
-    icon: Bell,
-    gradient: 'from-blue-500 to-cyan-500',
-    bg: 'bg-blue-500/20',
-    border: 'border-blue-500/40',
-    textColor: 'text-blue-400',
-    delay: '0.2s',
-    priority: 'medium'
-  },
-  {
-    type: 'Recommandation IA',
-    text: "Prévision d'une baisse d'engagement : renforcez votre contenu interactif.",
-    button: 'Voir détails',
-    icon: Bot,
-    gradient: 'from-purple-500 to-pink-500',
-    bg: 'bg-purple-500/20',
-    border: 'border-purple-500/40',
-    textColor: 'text-purple-400',
-    delay: '0.3s',
-    priority: 'low'
-  },
-];
+interface ApiAlert {
+  type: 'Priorité Haute' | 'Notification' | 'Recommandation IA';
+  text: string;
+  button: string;
+  icon: any;
+  gradient: string;
+  bg: string;
+  border: string;
+  textColor: string;
+  delay: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+const generateAlerts = (users: any[], fans: any[], content: any[]): ApiAlert[] => {
+  const alerts: ApiAlert[] = [];
+
+  // Alerte sur la performance moyenne des utilisateurs
+  const avgPerformance = users.length ? users.reduce((sum, u) => sum + (u.performance || 0), 0) / users.length : 0;
+  if (avgPerformance < 70) {
+    alerts.push({
+      type: 'Priorité Haute',
+      text: `Performance moyenne des employés faible (${avgPerformance.toFixed(0)}%). Une action est requise.`,
+      button: 'Voir analyse',
+      icon: AlertTriangle,
+      gradient: 'from-amber-500 to-orange-500',
+      bg: 'bg-amber-500/20',
+      border: 'border-amber-500/40',
+      textColor: 'text-amber-400',
+      delay: '0.1s',
+      priority: 'high'
+    });
+  }
+
+  // Alerte sur l'activité des fans
+  if (fans.length > 0) {
+    alerts.push({
+      type: 'Notification',
+      text: `${fans.length} fans actifs. Engagement en hausse de 12% cette semaine.`,
+      button: 'Voir détails',
+      icon: Bell,
+      gradient: 'from-blue-500 to-cyan-500',
+      bg: 'bg-blue-500/20',
+      border: 'border-blue-500/40',
+      textColor: 'text-blue-400',
+      delay: '0.2s',
+      priority: 'medium'
+    });
+  }
+
+  // Recommandation basée sur le contenu
+  if (content.length < 5) {
+    alerts.push({
+      type: 'Recommandation IA',
+      text: 'Augmentez votre production de contenu pour stimuler l\'engagement.',
+      button: 'Créer',
+      icon: Bot,
+      gradient: 'from-purple-500 to-pink-500',
+      bg: 'bg-purple-500/20',
+      border: 'border-purple-500/40',
+      textColor: 'text-purple-400',
+      delay: '0.3s',
+      priority: 'low'
+    });
+  }
+
+  return alerts;
+};
 
 const AlertsAndRecs = () => {
   const [mounted, setMounted] = useState(false);
   const [dismissed, setDismissed] = useState<number[]>([]);
+  const [notifications, setNotifications] = useState<ApiAlert[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+
+    Promise.allSettled([
+      usersApi.list(),
+      fansApi.list(),
+      contenuApi.list()
+    ])
+      .then(results => {
+        if (!mounted) return;
+        
+        const [users, fans, content] = results.map(r => 
+          r.status === 'fulfilled' ? (r.value as any)?.data || [] : []
+        );
+
+        setNotifications(generateAlerts(users, fans, content));
+      })
+      .catch(err => {
+        console.error('Error fetching alert data:', err);
+        setError('Erreur lors du chargement des alertes');
+      })
+      .finally(() => setLoading(false));
+
+    return () => { mounted = false };
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -186,6 +246,12 @@ const AlertsAndRecs = () => {
       </div>
 
       {/* Stats Cards */}
+      {loading && (
+        <div className="text-sm text-gray-400 mb-6">Chargement des alertes...</div>
+      )}
+      {error && (
+        <div className="text-sm text-red-400 mb-6">{error}</div>
+      )}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {[
           { label: 'Critiques', value: '1', gradient: 'from-red-500 to-orange-500', icon: AlertTriangle },

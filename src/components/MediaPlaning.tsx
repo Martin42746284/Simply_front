@@ -1,9 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Upload, Clock, PlayCircle, Image, Video, ArrowRight, CheckCircle, Loader } from 'lucide-react';
+import { contenuApi, imagesApi } from '../api/client';
+
+interface MediaItem {
+  name: string;
+  time: string;
+  icon: any;
+  status: 'completed' | 'processing';
+  gradient: string;
+  size: string;
+  delay: string;
+}
 
 const MediaPlanning = () => {
   const [mounted, setMounted] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(65);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -19,26 +33,52 @@ const MediaPlanning = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const mediaItems = [
-    {
-      name: 'Image_Promo_Noel.jpg',
-      time: 'Il y a 20h',
-      icon: Image,
-      status: 'completed',
-      gradient: 'from-blue-500 to-cyan-500',
-      size: '2.4 MB',
-      delay: '0.2s'
-    },
-    {
-      name: 'Intro_NouveauxAbonnes.mp4',
-      time: 'En cours',
-      icon: Video,
-      status: 'processing',
-      gradient: 'from-amber-500 to-orange-500',
-      size: '45.8 MB',
-      delay: '0.3s'
-    }
-  ];
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+
+    Promise.allSettled([
+      contenuApi.list(),
+      imagesApi.list()
+    ])
+      .then(results => {
+        if (!mounted) return;
+        
+        const [contenu, images] = results.map(r => 
+          r.status === 'fulfilled' ? (r.value as any)?.data || [] : []
+        );
+
+        const mediaItems: MediaItem[] = [
+          ...contenu.map((c: any): MediaItem => ({
+            name: c.titre || 'Contenu sans titre',
+            time: 'Il y a 1h',
+            icon: Video,
+            status: 'completed',
+            gradient: 'from-amber-500 to-orange-500',
+            size: '45.8 MB',
+            delay: '0.2s'
+          })),
+          ...images.map((img: any): MediaItem => ({
+            name: img.url?.split('/').pop() || 'Image sans nom',
+            time: 'Il y a 20h',
+            icon: Image,
+            status: 'completed',
+            gradient: 'from-blue-500 to-cyan-500',
+            size: '2.4 MB',
+            delay: '0.3s'
+          }))
+        ];
+
+        setMediaItems(mediaItems);
+      })
+      .catch(err => {
+        console.error('Error fetching media:', err);
+        setError('Erreur lors du chargement des médias');
+      })
+      .finally(() => setLoading(false));
+
+    return () => { mounted = false };
+  }, []);
 
   return (
     <div className="p-4 sm:p-6 text-gray-100 min-h-screen bg-gray-900">
@@ -171,12 +211,18 @@ const MediaPlanning = () => {
       </div>
 
       {/* Recent Media Section */}
+      {loading && (
+        <div className="text-sm text-gray-400 mb-6">Chargement des médias...</div>
+      )}
+      {error && (
+        <div className="text-sm text-red-400 mb-6">{error}</div>
+      )}
       <div
         className={`glassmorphism rounded-2xl p-6 shadow-xl border-2 border-purple-500/30 ${mounted ? 'animate-fadeInUp' : 'opacity-0'}`}
         style={{ animationDelay: '0.2s' }}
       >
         <h3 className="text-lg font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-5">
-          Médias Récents
+          Médias Récents ({mediaItems.length})
         </h3>
 
         <div className="space-y-4">
@@ -244,14 +290,14 @@ const MediaPlanning = () => {
         <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-gray-700/50">
           <div className="text-center">
             <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Uploads</p>
-            <p className="text-lg font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-              248
+            <p className="text-lg font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
+              {mediaItems.length}
             </p>
           </div>
           <div className="text-center">
             <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Ce Mois</p>
             <p className="text-lg font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              42
+              {mediaItems.filter(m => m.status === 'completed').length}
             </p>
           </div>
         </div>

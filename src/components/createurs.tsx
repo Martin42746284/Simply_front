@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { fansApi, contenuApi, imagesApi } from '../api/client';
 import { ChevronDown } from 'lucide-react';
+import AddContenuModal from './contenu/AddContenuModal';
+import AddImageModal from './images/AddImageModal';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 // --------------------------------------------------
 // A. Composant Carte de Métrique (MetricCard)
@@ -155,18 +159,45 @@ const Createurs: React.FC = () => {
     setMounted(true);
   }, []);
 
-  const revenueCards = [
+  
+
+  const [fans, setFans] = useState<any[]>([]);
+  const [contenus, setContenus] = useState<any[]>([]);
+  const [images, setImages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [openAddContenu, setOpenAddContenu] = useState(false);
+  const [openAddImage, setOpenAddImage] = useState(false);
+
+  const reload = async () => {
+    setLoading(true);
+    try {
+      const [f, c, i] = await Promise.all([fansApi.list(), contenuApi.list(), imagesApi.list()]);
+      setFans((f && f.data) || f || []);
+      setContenus((c && c.data) || c || []);
+      setImages((i && i.data) || i || []);
+    } catch (err) {
+      console.error('load createurs data', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    reload();
+  }, []);
+
+  const revenueCards: Array<{ title: string; amount: string; subtitle: string; delay: string; gradient: string }> = (contenus.length ? contenus.slice(0,3).map((c: any, i: number) => ({ title: c.titre || `Contenu ${i+1}`, amount: `${c.prix || 0} $`, subtitle: 'Contenu', delay: `0.${i+1}s`, gradient: ['from-blue-500 to-cyan-500','from-purple-500 to-pink-500','from-emerald-500 to-teal-500'][i] })) : [
     { title: "Abonnements", amount: "1478.98 $", subtitle: "Medias Privés", delay: "0.1s", gradient: "from-blue-500 to-cyan-500" },
     { title: "Medias push", amount: "1478.98 $", subtitle: "Lives", delay: "0.2s", gradient: "from-purple-500 to-pink-500" },
     { title: "Tips", amount: "1478.98 $", subtitle: "Affiliés", delay: "0.3s", gradient: "from-emerald-500 to-teal-500" },
-  ];
+  ]);
 
-  const permanentCards = [
+  const permanentCards: Array<{ title: string; amount: string; subtitle: string; delay: string; gradient: string }> = (fans.length ? fans.slice(0,4).map((f: any, i: number) => ({ title: f.nom || `Fan ${i+1}`, amount: `${f.totalDepense || 0}`, subtitle: f.statut || 'Fan', delay: `0.${i+4}s`, gradient: ['from-orange-500 to-red-500','from-violet-500 to-purple-600','from-indigo-500 to-blue-600','from-rose-500 to-pink-600'][i] })) : [
     { title: "Employe permanent", amount: "1,300", subtitle: "Medias Privés", delay: "0.4s", gradient: "from-orange-500 to-red-500" },
     { title: "Employe permanent", amount: "1,300", subtitle: "Medias Privés", delay: "0.5s", gradient: "from-violet-500 to-purple-600" },
     { title: "Employe permanent", amount: "1,300", subtitle: "Medias Privés", delay: "0.6s", gradient: "from-indigo-500 to-blue-600" },
     { title: "Employe permanent", amount: "1,300", subtitle: "Medias Privés", delay: "0.7s", gradient: "from-rose-500 to-pink-600" },
-  ];
+  ]);
 
   return (
     <div className="flex flex-col lg:flex-row flex-1 min-h-screen bg-gray-900 text-white">
@@ -244,7 +275,19 @@ const Createurs: React.FC = () => {
             Détail de revenus
           </h1>
           <div className="mt-2 h-1 w-24 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 rounded-full"></div>
+          <div className="mt-3 flex gap-3">
+            <button onClick={reload} className="px-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700 text-sm">Refresh</button>
+            <button onClick={() => setOpenAddContenu(true)} className="px-3 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm">Ajouter contenu</button>
+            <div className="ml-auto flex items-center gap-3">
+              {loading && <div className="text-sm text-gray-300">Chargement...</div>}
+              <button onClick={() => setOpenAddImage(true)} className="px-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700 text-sm">Ajouter image</button>
+              <div className="text-sm text-gray-400">Images: <span className="text-white font-semibold">{images.length}</span></div>
+            </div>
+          </div>
         </div>
+
+        <AddContenuModal open={openAddContenu} setOpen={setOpenAddContenu} onCreated={async () => { await reload(); }} />
+        <AddImageModal open={openAddImage} setOpen={setOpenAddImage} onCreated={async () => { await reload(); }} />
 
         {/* Top Revenue Cards (Abonnements, Medias push, Tips) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
@@ -287,16 +330,48 @@ const Createurs: React.FC = () => {
               Revenus mensuels
             </p>
             
-            <div className="h-64 sm:h-80 flex items-center justify-center glassmorphism rounded-lg border border-indigo-500/30">
-              <div className="text-center">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
+            <div className="h-64 sm:h-80 glassmorphism rounded-lg border border-indigo-500/30 p-4 overflow-hidden">
+              <div className="flex flex-col sm:flex-row gap-4 h-full">
+                <div className="flex-1 flex flex-col justify-between">
+                  <div>
+                    <p className="text-sm text-gray-400">Revenus (résumé)</p>
+                    <h3 className="text-2xl font-bold text-white">{contenus.reduce((s, c: any) => s + (Number(c.prix) || 0), 0)} $</h3>
+                    <p className="text-xs text-gray-500">Basé sur les contenus listés</p>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 mt-3">
+                    <div className="p-3 bg-gray-800/40 rounded-lg">
+                      <p className="text-xs text-gray-400">Total contenus</p>
+                      <p className="text-sm font-semibold text-white">{contenus.length}</p>
+                    </div>
+                    <div className="p-3 bg-gray-800/40 rounded-lg">
+                      <p className="text-xs text-gray-400">Fans</p>
+                      <p className="text-sm font-semibold text-white">{fans.length}</p>
+                    </div>
+                    <div className="p-3 bg-gray-800/40 rounded-lg">
+                      <p className="text-xs text-gray-400">Images</p>
+                      <p className="text-sm font-semibold text-white">{images.length}</p>
+                    </div>
+                  </div>
                 </div>
-                <span className="text-gray-400 text-sm">
-                  Intégration du composant de graphique ici
-                </span>
+
+                <div className="flex-1 flex flex-col justify-center items-center">
+                    {contenus.length === 0 ? (
+                      <div className="text-center text-gray-500">Aucun contenu à afficher</div>
+                    ) : (
+                      <div className="w-full max-w-xl h-36">
+                        <ResponsiveContainer width="100%" height={140}>
+                          <BarChart data={contenus.slice(0, 10).map((c: any, i: number) => ({ name: c.titre || `C${i+1}`, prix: Number(c.prix) || 0 }))}>
+                            <XAxis dataKey="name" tick={{ fill: '#94a3b8' }} />
+                            <YAxis tick={{ fill: '#94a3b8' }} />
+                            <Tooltip wrapperStyle={{ background: '#0f172a', borderRadius: 6 }} />
+                            <Bar dataKey="prix" fill="#6EE7B7" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                        <p className="text-xs text-gray-400 text-right">Prix des contenus (échantillon)</p>
+                      </div>
+                    )}
+                </div>
               </div>
             </div>
           </div>

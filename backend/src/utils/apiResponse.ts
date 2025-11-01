@@ -52,6 +52,8 @@ export function formatUserResponse(user: any) {
   
   return {
     ...userWithoutPassword,
+    status: user.status ?? null,
+    performance: user.performance ?? null,
     settings: {
       emailNotifications: user.emailNotifications ?? false,
       pushNotifications: user.pushNotifications ?? false,

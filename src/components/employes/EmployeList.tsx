@@ -1,4 +1,7 @@
 import React from "react";
+import { usePagination } from "../../hooks/usePagination";
+import { useFilteredData } from "../../hooks/useFilteredData";
+import { SearchInput } from "../ui/SearchInput";
 
 interface Employe {
   id: number;
@@ -18,8 +21,40 @@ const EmployeList: React.FC<Props> = ({ employes, setEmployes }) => {
     setEmployes(employes.filter((emp) => emp.id !== id));
   };
 
+  const { filteredData, searchQuery, setSearchQuery } = useFilteredData({
+    data: employes,
+    searchConfig: {
+      keys: ['nom', 'poste', 'email'],
+      caseSensitive: false
+    }
+  });
+
+  const {
+    currentItems
+  } = usePagination({
+    items: filteredData,
+    itemsPerPage: 10
+  });
+
+  // Générer les suggestions de recherche uniques
+  const suggestions = [...new Set(
+    employes.flatMap(emp => [emp.nom, emp.poste, emp.email])
+  )].filter(suggestion => 
+    suggestion.toLowerCase().includes(searchQuery.toLowerCase())
+  ).slice(0, 5);
+
   return (
     <div className="bg-gray-900 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-lg">
+      <div className="mb-4">
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          suggestions={suggestions}
+          placeholder="Rechercher un employé..."
+          className="max-w-md"
+        />
+      </div>
+
       <table className="w-full text-left text-sm text-slate-300">
         <thead>
           <tr className="text-slate-400 border-b border-slate-700/50">
@@ -31,7 +66,7 @@ const EmployeList: React.FC<Props> = ({ employes, setEmployes }) => {
           </tr>
         </thead>
         <tbody>
-          {employes.map((emp) => (
+          {currentItems.map((emp) => (
             <tr
               key={emp.id}
               className="border-b border-slate-800/50 hover:bg-slate-800/50 transition-colors"

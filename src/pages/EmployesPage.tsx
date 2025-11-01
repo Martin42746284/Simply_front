@@ -15,6 +15,7 @@ interface Employee {
   avatar: string;
   joinDate: string;
   performance: number;
+  _rawId?: string;
 }
 
 const initialEmployees: Employee[] = [
@@ -70,12 +71,48 @@ const initialEmployees: Employee[] = [
 
 const EmployeeManagement = () => {
   const [mounted, setMounted] = useState(false);
-  const [employees] = useState<Employee[]>(initialEmployees);
+  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editing, setEditing] = useState<{ id?: string; name?: string; job?: string; email?: string; role?: string; phone?: string; department?: string; status?: string; avatar?: string; joinDate?: string; performance?: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    // fetch real users from backend
+    const fetchUsers = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await (await import('../api/client')).usersApi.list();
+        // res expected { data: [...] }
+        const data = res.data || res;
+        const mapped: Employee[] = data.map((u: any, idx: number) => ({
+          id: idx + 1,
+          name: u.name || u.email,
+          email: u.email,
+          phone: u.phone || '',
+          role: u.job || u.role || 'Employé',
+          department: u.city || '—',
+          status: u.role === 'admin' ? 'active' : 'active',
+          avatar: (u.name || 'U').split(' ').map((s: string) => s[0]).slice(0,2).join('').toUpperCase(),
+          joinDate: u.createdAt || new Date().toISOString(),
+          performance: Math.floor(Math.random() * 30) + 70,
+          _rawId: u.id
+        }));
+        setEmployees(mapped);
+      } catch (err: any) {
+        setError(err?.message || 'Erreur lors du chargement');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
   }, []);
 
   const filteredEmployees = employees.filter(emp =>
@@ -289,6 +326,7 @@ const EmployeeManagement = () => {
             {/* Employee Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
               {filteredEmployees.map((employee, index) => {
+                // show real id if present
                 const status = statusConfig[employee.status];
                 return (
                   <div
@@ -357,11 +395,26 @@ const EmployeeManagement = () => {
                     </div>
 
                     <div className="flex gap-2">
-                      <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg shadow-blue-500/30 hover:scale-105">
-                        <Edit className="w-4 h-4" />
-                        Modifier
-                      </button>
-                      <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl glassmorphism border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/10 transition-all">
+                          <button onClick={() => {
+                            // open modal in edit mode
+                            setEditing({ id: (employee as any)._rawId, name: employee.name, job: employee.role, email: employee.email, role: 'user', phone: employee.phone, department: employee.department, status: employee.status, avatar: employee.avatar, joinDate: employee.joinDate, performance: employee.performance });
+                            setIsModalOpen(true);
+                          }} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg shadow-blue-500/30 hover:scale-105">
+                            <Edit className="w-4 h-4" />
+                            Modifier
+                          </button>
+                      <button onClick={async () => {
+                        // delete employee by raw id
+                        try {
+                          const client = await import('../api/client');
+                          const rawId = (employee as any)._rawId;
+                          if (!rawId) return;
+                          await client.usersApi.delete(rawId);
+                          setEmployees((prev) => prev.filter(e => (e as any)._rawId !== rawId));
+                        } catch (err) {
+                          console.error('delete error', err);
+                        }
+                      }} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl glassmorphism border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/10 transition-all">
                         <Trash2 className="w-4 h-4" />
                         Supprimer
                       </button>
@@ -370,6 +423,9 @@ const EmployeeManagement = () => {
                 );
               })}
             </div>
+
+            {loading && <div className="text-center text-gray-400 mt-4">Chargement...</div>}
+            {error && <div className="text-center text-red-400 mt-4">{error}</div>}
 
             {/* Pagination */}
             <div
@@ -393,9 +449,31 @@ const EmployeeManagement = () => {
             {isModalOpen && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                 <div className="glassmorphism rounded-2xl p-6 max-w-md w-full border-2 border-purple-500/30 animate-scaleIn">
-                  <h3 className="text-xl font-bold text-white mb-4">Ajouter un employé</h3>
-                  <AddEmployeModal setIsModalOpen={setIsModalOpen} />
-                  
+                  <h3 className="text-xl font-bold text-white mb-4">{editing ? 'Modifier un employé' : 'Ajouter un employé'}</h3>
+                  <AddEmployeModal setIsModalOpen={(open) => { setIsModalOpen(open); if (!open) setEditing(null); }} initial={editing ?? undefined} onCreated={async () => {
+                    // refresh list
+                    const res = await (await import('../api/client')).usersApi.list();
+                    const data = res.data || res;
+                    const mapped: Employee[] = data.map((u: any, idx: number) => ({
+                      id: idx + 1,
+                      name: u.name || u.email,
+                      email: u.email,
+                      phone: u.phone || '',
+                      role: u.job || u.role || 'Employé',
+                      department: u.city || '—',
+                      status: 'active',
+                      avatar: (u.name || 'U').split(' ').map((s: string) => s[0]).slice(0,2).join('').toUpperCase(),
+                      joinDate: u.createdAt || new Date().toISOString(),
+                      performance: Math.floor(Math.random() * 30) + 70,
+                      _rawId: u.id
+                    }));
+                    setEmployees(mapped);
+                  }} onUpdated={(updated) => {
+                    // update local state with updated user
+                    const u = updated.data || updated;
+                    setEmployees((prev) => prev.map((p) => ((p as any)._rawId === u.id ? { ...p, name: u.name || p.name, email: u.email || p.email, role: u.job || u.role } : p)));
+                    setEditing(null);
+                  }} />
                   
                 </div>
               </div>

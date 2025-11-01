@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Mail, User, Clock, Send, Edit, AlertCircle, Star, ArrowRight, Filter } from 'lucide-react';
+import { useUsers, useFans } from '../context/DataContext';
 
 type Status = 'VIP' | 'Urgent' | 'Normal';
 
 type Message = {
-  id: number;
+  id: string;
   user: string;
   status: Status;
   time: string;
@@ -13,24 +14,94 @@ type Message = {
   priority: 'high' | 'urgent' | 'normal';
 };
 
-const messages: Message[] = [
-  { id: 1, user: 'Sarah D.', status: 'VIP', time: 'il y a 2h', content: 'Question sur l\'accès', unread: true, priority: 'high' },
-  { id: 2, user: 'Problème paiement', status: 'Urgent', time: 'il y a 1h', content: 'Brouillon', unread: true, priority: 'urgent' },
-  { id: 3, user: 'Kevin M.', status: 'Normal', time: 'il y a 4h', content: 'Suivi de dossier', unread: false, priority: 'normal' },
-];
+// Génère des messages à partir des données des utilisateurs et fans
+const generateMessages = (users: any[], fans: any[]): Message[] => {
+  const messages: Message[] = [];
+
+  // VIP messages basés sur les fans avec haut total de dépenses
+  fans
+    .filter(f => (f.totalDepense || 0) > 100)
+    .slice(0, 2)
+    .forEach(f => {
+      messages.push({
+        id: `fan_${f.id}`,
+        user: f.nom || 'Fan VIP',
+        status: 'VIP',
+        time: 'il y a 2h',
+        content: 'Question sur l\'accès premium',
+        unread: true,
+        priority: 'high'
+      });
+    });
+
+  // Messages urgents basés sur les utilisateurs avec performance basse
+  users
+    .filter(u => (u.performance || 0) < 60)
+    .slice(0, 2)
+    .forEach(u => {
+      messages.push({
+        id: `user_${u.id}`,
+        user: u.name || u.email || 'Employé',
+        status: 'Urgent',
+        time: 'il y a 1h',
+        content: 'Besoin d\'assistance',
+        unread: true,
+        priority: 'urgent'
+      });
+    });
+
+  // Messages normaux basés sur les autres fans
+  fans
+    .filter(f => (f.totalDepense || 0) <= 100)
+    .slice(0, 3)
+    .forEach(f => {
+      messages.push({
+        id: `fan_${f.id}`,
+        user: f.nom || 'Fan',
+        status: 'Normal',
+        time: 'il y a 4h',
+        content: 'Question générale',
+        unread: false,
+        priority: 'normal'
+      });
+    });
+
+  return messages;
+};
 
 const UrgentMessaging = () => {
   const [mounted, setMounted] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Use shared data from DataContext to avoid duplicate network requests
+  const { users } = useUsers();
+  const { fans } = useFans();
+
+  useEffect(() => {
+    // Derive messages from context data whenever users or fans change
+    setLoading(true);
+    try {
+      setMessages(generateMessages(users || [], fans || []));
+      setError(null);
+    } catch (err) {
+      console.error('Error generating messages from context data:', err);
+      setError('Erreur lors du chargement des messages');
+      setMessages([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [users, fans]);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const filters = [
-    { id: 'unread', label: 'Non lus', count: 2, gradient: 'from-blue-500 to-cyan-500' },
-    { id: 'vip', label: 'VIP', count: 1, gradient: 'from-red-500 to-pink-500' },
-    { id: 'urgent', label: 'Urgents', count: 1, gradient: 'from-amber-500 to-orange-500' }
+    { id: 'unread', label: 'Non lus', count: messages.filter(m => m.unread).length, gradient: 'from-blue-500 to-cyan-500' },
+    { id: 'vip', label: 'VIP', count: messages.filter(m => m.status === 'VIP').length, gradient: 'from-red-500 to-pink-500' },
+    { id: 'urgent', label: 'Urgents', count: messages.filter(m => m.status === 'Urgent').length, gradient: 'from-amber-500 to-orange-500' }
   ];
 
   const statusConfig = {
@@ -146,6 +217,12 @@ const UrgentMessaging = () => {
       `}</style>
 
       {/* Header avec animation */}
+      {loading && (
+        <div className="text-sm text-gray-400 mb-6">Chargement des messages...</div>
+      )}
+      {error && (
+        <div className="text-sm text-red-400 mb-6">{error}</div>
+      )}
       <div
         className={`mb-6 p-6 rounded-xl shadow-lg bg-gradient-to-br from-blue-500/20 via-purple-600/20 to-pink-500/20 backdrop-blur-xl border border-blue-500/30 ${mounted ? 'animate-fadeInDown' : 'opacity-0'}`}
       >
@@ -289,9 +366,9 @@ const UrgentMessaging = () => {
       >
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
-            { label: 'Messages Totaux', value: '127', gradient: 'from-blue-400 to-cyan-400' },
-            { label: 'Temps Moyen', value: '< 2h', gradient: 'from-purple-400 to-pink-400' },
-            { label: 'Taux de Réponse', value: '98%', gradient: 'from-emerald-400 to-teal-400' }
+            { label: 'Messages Totaux', value: messages.length.toString(), gradient: 'from-blue-400 to-cyan-400' },
+            { label: 'Messages Urgent/VIP', value: messages.filter(m => m.status === 'VIP' || m.status === 'Urgent').length.toString(), gradient: 'from-purple-400 to-pink-400' },
+            { label: 'Taux de Lecture', value: `${Math.round((messages.filter(m => !m.unread).length / Math.max(1, messages.length)) * 100)}%`, gradient: 'from-emerald-400 to-teal-400' }
           ].map((stat, i) => (
             <div key={i} className="text-center">
               <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{stat.label}</p>

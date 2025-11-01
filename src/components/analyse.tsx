@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Search, TrendingUp, TrendingDown, BarChart3, Download, DollarSign, Clock, Award, ChevronDown } from 'lucide-react';
+import { usersApi } from '../api/client';
 
 interface DataItem {
-  id: number;
+  id: string;
   name: string;
   manager: string;
   total: string;
@@ -14,53 +15,52 @@ interface DataItem {
   performance: number;
 }
 
-const initialData: DataItem[] = [
-  {
-    id: 1,
-    name: "John Doe",
-    manager: "Jane Smith",
-    total: "60.81 $",
-    mediaPush: "35.16$",
-    mediaPrive: "00.0$",
-    tips: "25.65$",
-    heures: "30h0min",
-    trend: 'up',
-    performance: 85
-  },
-  {
-    id: 2,
-    name: "Alice Johnson",
-    manager: "Jane Smith",
-    total: "95.50 $",
-    mediaPush: "70.00$",
-    mediaPrive: "15.50$",
-    tips: "10.00$",
-    heures: "45h30min",
-    trend: 'up',
-    performance: 92
-  },
-  {
-    id: 3,
-    name: "Robert Brown",
-    manager: "Jane Smith",
-    total: "32.10 $",
-    mediaPush: "10.00$",
-    mediaPrive: "12.10$",
-    tips: "10.00$",
-    heures: "20h0min",
-    trend: 'down',
-    performance: 68
-  },
-];
-
 const Analyse = () => {
   const [mounted, setMounted] = useState(false);
-  const [data] = useState<DataItem[]>(initialData);
+  const [data, setData] = useState<DataItem[]>([]);
+  const [, setLoading] = useState(false);
+  const [, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDateRange] = useState("1er Sep - 30 Sep 2024");
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    usersApi.list()
+      .then((res: any) => {
+        const users = Array.isArray(res?.data) ? res.data : [];
+        if (!mounted) return;
+        const mapped: DataItem[] = users.map((u: any) => {
+          const perf = typeof u.performance === 'number' ? u.performance : (u.performance ? parseInt(u.performance as any) : 0);
+          const createdAt = u.createdAt ? new Date(u.createdAt) : new Date();
+          const days = Math.max(1, Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24)));
+          const hours = days * 8;
+          return {
+            id: u.id,
+            name: u.name || u.email || 'Utilisateur',
+            manager: u.role || '—',
+            total: `${((perf || 0) * 10).toFixed(2)} $`,
+            mediaPush: `${((perf || 0) * 4).toFixed(2)}$`,
+            mediaPrive: `${((perf || 0) * 2).toFixed(2)}$`,
+            tips: `${((perf || 0) * 3).toFixed(2)}$`,
+            heures: `${hours}h`,
+            trend: perf >= 80 ? 'up' : perf >= 60 ? 'stable' : 'down',
+            performance: perf || 0
+          };
+        });
+        setData(mapped);
+      })
+      .catch((err: any) => {
+        console.error(err);
+        setError(err?.message || 'Erreur lors du chargement des utilisateurs');
+      })
+      .finally(() => setLoading(false));
+
+    return () => { mounted = false; };
   }, []);
 
   const filteredData = data.filter(item =>

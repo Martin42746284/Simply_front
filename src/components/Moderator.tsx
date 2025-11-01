@@ -1,20 +1,35 @@
 import { useState, useEffect } from 'react';
 import { User, Clock, Activity, Settings, TrendingUp, Award } from 'lucide-react';
+import { usersApi } from '../api/client';
 
 type StatusType = 'En Ligne' | 'En Attente' | 'Permissions';
 
-const moderators: Array<{
+interface Moderator {
   name: string;
   treated: number;
   time: string;
   status: StatusType;
   efficiency: number;
   trend?: 'up' | 'down';
-}> = [
-  { name: 'Ariane', treated: 120, time: '14 min', status: 'En Ligne', efficiency: 86, trend: 'up' },
-  { name: 'Bastien', treated: 87, time: '22 min', status: 'En Attente', efficiency: 64, trend: 'down' },
-  { name: 'Celine', treated: 50, time: '9 min', status: 'Permissions', efficiency: 72, trend: 'up' },
-];
+  avatar?: string;
+}
+
+// Transforme un utilisateur de l'API en modérateur pour l'UI
+const userToModerator = (user: any): Moderator => {
+  const perf = typeof user.performance === 'number' ? user.performance : (user.performance ? parseInt(user.performance as any) : 0);
+  const createdAt = user.createdAt ? new Date(user.createdAt) : new Date();
+  const minutesActive = Math.max(1, Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60)) % 60);
+  
+  return {
+    name: user.name || user.email?.split('@')[0] || 'Utilisateur',
+    treated: Math.round(perf * 2), // estimation basée sur la performance
+    time: `${minutesActive} min`,
+    status: perf >= 80 ? 'En Ligne' : perf >= 60 ? 'En Attente' : 'Permissions',
+    efficiency: perf,
+    trend: perf >= 75 ? 'up' : 'down',
+    avatar: user.avatar
+  };
+};
 
 const statusColors: Record<StatusType, string> = {
   'En Ligne': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40',
@@ -24,6 +39,28 @@ const statusColors: Record<StatusType, string> = {
 
 const ModeratorActivity = () => {
   const [mounted, setMounted] = useState(false);
+  const [moderators, setModerators] = useState<Moderator[]>([]);
+  const [, setLoading] = useState(false);
+  const [, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+
+    usersApi.list()
+      .then((res: any) => {
+        const users = Array.isArray(res?.data) ? res.data : [];
+        if (!mounted) return;
+        setModerators(users.map(userToModerator));
+      })
+      .catch(err => {
+        console.error('Error fetching moderators:', err);
+        setError('Erreur lors du chargement des modérateurs');
+      })
+      .finally(() => setLoading(false));
+
+    return () => { mounted = false };
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -121,9 +158,9 @@ const ModeratorActivity = () => {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
-          { icon: User, label: 'Modérateurs Actifs', value: '3', gradient: 'from-blue-500 to-cyan-500', delay: '0.1s' },
-          { icon: Activity, label: 'Messages Traités', value: '327', gradient: 'from-purple-500 to-pink-500', delay: '0.2s' },
-          { icon: Clock, label: 'Temps Moyen', value: '19 min', gradient: 'from-emerald-500 to-teal-500', delay: '0.3s' }
+          { icon: User, label: 'Modérateurs Actifs', value: moderators.filter(m => m.status === 'En Ligne').length.toString(), gradient: 'from-blue-500 to-cyan-500', delay: '0.1s' },
+          { icon: Activity, label: 'Messages Traités', value: moderators.reduce((sum, m) => sum + m.treated, 0).toString(), gradient: 'from-purple-500 to-pink-500', delay: '0.2s' },
+          { icon: Clock, label: 'Temps Moyen', value: `${Math.round(moderators.reduce((sum, m) => sum + parseInt(m.time), 0) / Math.max(1, moderators.length))} min`, gradient: 'from-emerald-500 to-teal-500', delay: '0.3s' }
         ].map((stat, index) => {
           const Icon = stat.icon;
           return (
@@ -224,21 +261,47 @@ const ModeratorActivity = () => {
         {/* Best Performer Section */}
         <div className="mt-6 glassmorphism rounded-xl p-4 border border-amber-500/30">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
-                <Award className="text-white w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wide">Meilleur Performance</p>
-                <p className="text-lg font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
-                  {moderators[0].name}
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-gray-400">Messages</p>
-              <p className="text-2xl font-bold text-white">{moderators[0].treated}</p>
-            </div>
+                {moderators.length > 0 ? (
+                  (() => {
+                    // Choisir le meilleur modérateur (basé sur "treated") de façon défensive
+                    const best = moderators.reduce((prev, cur) => (cur.treated > prev.treated ? cur : prev), moderators[0]);
+                    return (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
+                            <Award className="text-white w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400 uppercase tracking-wide">Meilleur Performance</p>
+                            <p className="text-lg font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
+                              {best.name}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">Messages</p>
+                          <p className="text-2xl font-bold text-white">{best.treated}</p>
+                        </div>
+                      </>
+                    );
+                  })()
+                ) : (
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
+                        <Award className="text-white w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400 uppercase tracking-wide">Meilleur Performance</p>
+                        <p className="text-lg font-bold text-gray-300">Aucun modérateur</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-400">Messages</p>
+                      <p className="text-2xl font-bold text-gray-300">0</p>
+                    </div>
+                  </div>
+                )}
           </div>
         </div>
 
