@@ -22,7 +22,20 @@ async function main() {
     const app = express();
 
     // Middleware
-    app.use(cors());
+      // Middleware
+      // Configure CORS using FRONTEND_URL (can be a single URL or a comma-separated list)
+      const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const allowedOrigins = FRONTEND_URL.split(',').map((s) => s.trim());
+
+      app.use(cors({
+        origin: (origin, callback) => {
+          // allow requests with no origin (e.g. server-to-server, Postman)
+          if (!origin) return callback(null, true);
+          if (allowedOrigins.includes(origin)) return callback(null, true);
+          return callback(new Error(`Not allowed by CORS: ${origin}`));
+        },
+        credentials: true,
+      }));
     app.use(express.json());
     app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'))); // Serve uploaded files
 
