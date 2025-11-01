@@ -5,20 +5,14 @@
       "use": "@vercel/node"
     },
     {
-      "src": "package.json",
+      "src": "index.html",
       "use": "@vercel/static-build"
     }
   ],
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "backend/$1.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/"
-    }
+    { "src": "/api/(.*)", "dest": "backend/$1.ts" },
+    { "src": "/(.*)", "dest": "/" }
   ]
 }
